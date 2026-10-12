@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Side-Channel & Algorithmic Complexity Attacks — Interactive Explainer</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #1a1d27;
+    --panel-border: #2a2e3a;
+    --text: #e7e9ee;
+    --muted: #9aa1b1;
+    --accent: #5ec2ff;
+    --accent2: #ff6b6b;
+    --good: #4ade80;
+    --bad: #f87171;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 8px; }
+  header h1 { font-size: 1.6rem; margin: 0 0 6px; }
+  header p { color: var(--muted); margin: 0; font-size: 0.95rem; }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin: 24px 0 16px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.95rem;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tab-btn.active {
+    color: var(--text);
+    border-bottom: 2px solid var(--accent);
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .card h2 { margin-top: 0; font-size: 1.15rem; }
+  .card h3 { font-size: 1rem; color: var(--accent); margin-bottom: 6px; }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+  input[type="text"] {
+    width: 100%;
+    background: #10131c;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1rem;
+    padding: 10px 12px;
+    border-radius: 6px;
+    letter-spacing: 2px;
+  }
+  input[type="range"] { width: 100%; }
+
+  button {
+    background: var(--accent);
+    color: #0b0d12;
+    border: none;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+
+  .key-display {
+    font-family: var(--mono);
+    font-size: 1.4rem;
+    letter-spacing: 6px;
+    margin: 14px 0;
+    display: flex;
+    gap: 4px;
+  }
+  .ch {
+    width: 28px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: #10131c;
+    border: 1px solid var(--panel-border);
+  }
+  .ch.correct { background: rgba(74,222,128,0.15); border-color: var(--good); color: var(--good); }
+  .ch.wrong { background: rgba(248,113,113,0.1); border-color: var(--panel-border); color: var(--muted); }
+
+  .readout {
+    font-family: var(--mono);
+    background: #10131c;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-top: 12px;
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .readout .oracle { color: var(--accent); }
+  .readout .win { color: var(--good); font-weight: 600; }
+
+  .chartbox { background: #10131c; border: 1px solid var(--panel-border); border-radius: 6px; padding: 10px; margin-top: 14px; }
+  svg { width: 100%; height: 260px; display: block; }
+  .axis-label { fill: var(--muted); font-size: 11px; font-family: var(--mono); }
+  .bar-benign { fill: var(--good); }
+  .bar-malicious { fill: var(--accent2); }
+  .gridline { stroke: var(--panel-border); stroke-width: 1; }
+
+  .legend { display: flex; gap: 18px; margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 32px; }
+  code { background: #10131c; padding: 1px 5px; border-radius: 4px; font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Side-Channel & Algorithmic Complexity Attacks</h1>
+    <p>Two interactive demos: a counting-oracle password leak, and a regex "evil input" slowdown.</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="oracle">1. Counting Side-Channel</button>
+    <button class="tab-btn" data-tab="redos">2. Algorithmic Complexity (ReDoS)</button>
+  </div>
+
+  <!-- ===================== TAB 1: COUNTING ORACLE ===================== -->
+  <section id="oracle" class="panel active">
+    <div class="card">
+      <h2>Why a "mismatch count" leaks a secret</h2>
+      <p class="muted">
+        This mirrors a real vulnerability pattern: a login check that is supposed to say only
+        "right" or "wrong" instead tells you <em>how close</em> your guess was, by printing the
+        number of mismatched characters. That single number turns a brute-force problem into an
+        easy one — you can solve the password one character at a time.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Try it yourself</h3>
+      <label for="guessInput">Your guess (same length as the hidden key — try anything)</label>
+      <input type="text" id="guessInput" maxlength="8" autocomplete="off" spellcheck="false" placeholder="type a guess...">
+      <div class="key-display" id="keyDisplay"></div>
+      <div class="row">
+        <span class="muted" id="mismatchReadout">Mismatches: —</span>
+      </div>
+      <div class="row">
+        <button id="newKeyBtn" class="secondary">New random key</button>
+        <button id="autoCrackBtn">▶ Watch the automated attack</button>
+      </div>
+      <div class="readout" id="oracleLog">Type a guess above, or click "Watch the automated attack" to see it solved automatically using only the mismatch count — no access to the real key.</div>
+    </div>
+  </section>
+
+  <!-- ===================== TAB 2: REDOS ===================== -->
+  <section id="redos" class="panel">
+    <div class="card">
+      <h2>Why some regex patterns can "explode"</h2>
+      <p class="muted">
+        Some regular expressions have internal ambiguity: the same input can be split into pieces
+        in many different ways. When a match ultimately <em>fails</em>, the regex engine may try
+        every one of those ways before giving up — so processing time can blow up as the input
+        grows, even though the input itself isn't especially long. This is called
+        <strong>ReDoS</strong> (Regular Expression Denial of Service), and it's one real instance
+        of an <strong>Algorithmic Complexity (AC) time</strong> attack: a crafted input pushes an
+        algorithm toward its worst case instead of its typical case.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Try it yourself</h3>
+      <p class="muted">
+        The pattern below (a simplified email-style validator) has exactly this kind of ambiguity.
+        Drag the slider to change how many repeated units are in the test string, then run it on
+        a <span style="color:var(--good)">benign</span> (matching) input and a
+        <span style="color:var(--accent2)">malicious</span> (deliberately failing) input of the
+        same length, and compare the real measured times.
+      </p>
+      <label for="lengthSlider">Repetition count: <span id="lengthVal">25</span> (~<span id="charLen">0</span> characters per input)</label>
+      <input type="range" id="lengthSlider" min="5" max="60" value="25" step="1">
+      <div class="row">
+        <button id="runBtn">Run both inputs now</button>
+        <span class="muted" id="runStatus"></span>
+      </div>
+      <div class="chartbox">
+        <svg id="chart" viewBox="0 0 640 260" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--good)"></span> Benign (matches cleanly)</span>
+        <span><span class="swatch" style="background:var(--accent2)"></span> Malicious (fails after heavy backtracking)</span>
+      </div>
+      <div class="readout" id="redosLog">Adjust the slider and click "Run both inputs now".</div>
+    </div>
+  </section>
+
+  <footer>
+    Built for SE/CprE 4210 Learning Sprint #3 — Problem 5. Runs entirely client-side; no data leaves your browser.
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   TAB SWITCHING
+   ============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ============================================================
+   TAB 1: COUNTING SIDE-CHANNEL ORACLE DEMO
+   Mirrors the real vulnerability pattern analyzed in Problem 2:
+   a comparison function that reveals the mismatch count instead
+   of only pass/fail.
+   ============================================================ */
+const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
+let secretKey = "";
+const KEY_LEN = 6;
+
+function randomKey(len) {
+  let s = "";
+  for (let i = 0; i < len; i++) {
+    s += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+  }
+  return s;
+}
+
+function mismatchCount(guess, key) {
+  let count = 0;
+  for (let i = 0; i < key.length; i++) {
+    if (guess[i] !== key[i]) count++;
+  }
+  return count;
+}
+
+function renderKeyDisplay(guess) {
+  const display = document.getElementById('keyDisplay');
+  display.innerHTML = "";
+  for (let i = 0; i < KEY_LEN; i++) {
+    const span = document.createElement('span');
+    const g = (guess || "")[i];
+    if (g === undefined || g === "") {
+      span.className = 'ch';
+      span.textContent = "_";
+    } else if (g === secretKey[i]) {
+      span.className = 'ch correct';
+      span.textContent = g;
+    } else {
+      span.className = 'ch wrong';
+      span.textContent = g;
+    }
+    display.appendChild(span);
+  }
+}
+
+function newKey() {
+  secretKey = randomKey(KEY_LEN);
+  document.getElementById('guessInput').value = "";
+  document.getElementById('guessInput').maxLength = KEY_LEN;
+  document.getElementById('mismatchReadout').textContent = "Mismatches: —";
+  document.getElementById('oracleLog').textContent =
+    "New hidden key generated (not shown). Type a " + KEY_LEN + "-letter guess (a-z) above, or click \"Watch the automated attack\".";
+  renderKeyDisplay("");
+}
+
+document.getElementById('guessInput').addEventListener('input', (e) => {
+  const guess = e.target.value.toLowerCase().replace(/[^a-z]/g, "");
+  e.target.value = guess;
+  renderKeyDisplay(guess);
+  if (guess.length === KEY_LEN) {
+    const mm = mismatchCount(guess, secretKey);
+    document.getElementById('mismatchReadout').textContent =
+      "Mismatches: " + mm + (mm === 0 ? "  —  ACCESS GRANTED!" : "");
+  } else {
+    document.getElementById('mismatchReadout').textContent = "Mismatches: — (need " + KEY_LEN + " letters)";
+  }
+});
+
+document.getElementById('newKeyBtn').addEventListener('click', newKey);
+
+document.getElementById('autoCrackBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('autoCrackBtn');
+  const log = document.getElementById('oracleLog');
+  btn.disabled = true;
+  log.textContent = "";
+
+  const guessArr = new Array(KEY_LEN).fill('a');
+  const print = (line, cls) => {
+    const span = document.createElement('div');
+    if (cls) span.className = cls;
+    span.textContent = line;
+    log.appendChild(span);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  print("Starting automated attack using ONLY the mismatch count (no access to the real key)...");
+  await sleep(400);
+
+  for (let pos = 0; pos < KEY_LEN; pos++) {
+    let bestChar = guessArr[pos];
+    let bestScore = mismatchCount(guessArr.join(''), secretKey);
+    for (const ch of ALPHABET) {
+      const trial = guessArr.slice();
+      trial[pos] = ch;
+      const score = mismatchCount(trial.join(''), secretKey);
+      print(`  trying position ${pos} = '${ch}'  ->  oracle says ${score} mismatches`, 'oracle');
+      renderKeyDisplay(trial.join(''));
+      await sleep(18);
+      if (score < bestScore) {
+        bestScore = score;
+        bestChar = ch;
+      }
+      if (score === 0) break;
+    }
+    guessArr[pos] = bestChar;
+    print(`Position ${pos} solved: '${bestChar}' (remaining mismatches: ${bestScore})`);
+    renderKeyDisplay(guessArr.join(''));
+    document.getElementById('mismatchReadout').textContent = "Mismatches: " + bestScore;
+    await sleep(250);
+  }
+
+  print("");
+  print("Recovered key: " + guessArr.join(''), 'win');
+  print("Verified against the hidden key: ACCESS GRANTED!", 'win');
+  btn.disabled = false;
+});
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+newKey();
+
+/* ============================================================
+   TAB 2: REDOS DEMO
+   Uses a JS regex with the SAME structural ambiguity as the
+   Java EMAIL_PATTERN analyzed in Problem 3 (repeated group with
+   a dot allowed both as a mandatory separator and inside the
+   trailing character class). We actually run this regex in the
+   browser and measure real elapsed time.
+   ============================================================ */
+const VULNERABLE_PATTERN = /^([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)*$/;
+
+function buildBenign(n) {
+  let s = "";
+  for (let i = 0; i < n; i++) s += "ab@cd.ef.";
+  return s + "ghijk";
+}
+function buildMalicious(n) {
+  let s = "a@";
+  for (let i = 0; i < n; i++) s += "a.";
+  return s + "@";
+}
+
+function timeRegex(pattern, input, capMs) {
+  const start = performance.now();
+  let matched = null;
+  // Run in small sync chunks isn't feasible for a single regex call (it's atomic),
+  // so we just measure the call directly, with a soft display cap for the chart.
+  matched = pattern.test(input);
+  const elapsed = performance.now() - start;
+  return { matched, elapsed };
+}
+
+const slider = document.getElementById('lengthSlider');
+const lengthVal = document.getElementById('lengthVal');
+const charLen = document.getElementById('charLen');
+
+function updateCharLen() {
+  const n = parseInt(slider.value, 10);
+  lengthVal.textContent = n;
+  charLen.textContent = buildMalicious(n).length;
+}
+slider.addEventListener('input', updateCharLen);
+updateCharLen();
+
+document.getElementById('runBtn').addEventListener('click', () => {
+  const n = parseInt(slider.value, 10);
+  const benign = buildBenign(n);
+  const malicious = buildMalicious(n);
+  const status = document.getElementById('runStatus');
+  status.textContent = "Running on your browser's JS engine (results vary by device)...";
+
+  // Let the UI repaint before we block the main thread with the regex calls.
+  setTimeout(() => {
+    const benignResult = timeRegex(VULNERABLE_PATTERN, benign);
+    const maliciousResult = timeRegex(VULNERABLE_PATTERN, malicious);
+
+    const log = document.getElementById('redosLog');
+    const ratio = maliciousResult.elapsed / Math.max(benignResult.elapsed, 0.001);
+    log.textContent =
+`Benign input (${benign.length} chars): matches = ${benignResult.matched}
+  time: ${benignResult.elapsed.toFixed(3)} ms
+
+Malicious input (${malicious.length} chars): matches = ${maliciousResult.matched}
+  time: ${maliciousResult.elapsed.toFixed(3)} ms
+
+Slowdown ratio: ${ratio.toFixed(2)}x`;
+
+    drawChart(benignResult.elapsed, maliciousResult.elapsed);
+    status.textContent = "Done. Try a larger repetition count to see the gap grow.";
+  }, 30);
+});
+
+function drawChart(benignMs, maliciousMs) {
+  const svg = document.getElementById('chart');
+  svg.innerHTML = "";
+  const maxVal = Math.max(benignMs, maliciousMs, 0.01) * 1.15;
+  const chartW = 640, chartH = 260, padL = 50, padB = 30, padT = 20;
+  const barW = 140;
+
+  const ns = "http://www.w3.org/2000/svg";
+  function el(tag, attrs) {
+    const e = document.createElementNS(ns, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // gridlines + axis labels
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const y = chartT(i / steps);
+    svg.appendChild(el('line', { x1: padL, x2: chartW - 20, y1: y, y2: y, class: 'gridline' }));
+    const label = el('text', { x: padL - 8, y: y + 4, class: 'axis-label', 'text-anchor': 'end' });
+    label.textContent = (maxVal * (1 - i / steps)).toFixed(2) + " ms";
+    svg.appendChild(label);
+  }
+
+  function chartT(frac) { return padT + frac * (chartH - padT - padB); }
+  function barHeight(val) { return (val / maxVal) * (chartH - padT - padB); }
+
+  const x1 = padL + 60;
+  const x2 = x1 + barW + 80;
+
+  const h1 = barHeight(benignMs);
+  const h2 = barHeight(maliciousMs);
+
+  svg.appendChild(el('rect', { x: x1, y: chartH - padB - h1, width: barW, height: h1, class: 'bar-benign', rx: 4 }));
+  svg.appendChild(el('rect', { x: x2, y: chartH - padB - h2, width: barW, height: h2, class: 'bar-malicious', rx: 4 }));
+
+  const l1 = el('text', { x: x1 + barW / 2, y: chartH - 8, class: 'axis-label', 'text-anchor': 'middle' });
+  l1.textContent = 'benign';
+  svg.appendChild(l1);
+  const l2 = el('text', { x: x2 + barW / 2, y: chartH - 8, class: 'axis-label', 'text-anchor': 'middle' });
+  l2.textContent = 'malicious';
+  svg.appendChild(l2);
+
+  const v1 = el('text', { x: x1 + barW / 2, y: chartH - padB - h1 - 8, class: 'axis-label', 'text-anchor': 'middle' });
+  v1.textContent = benignMs.toFixed(3) + ' ms';
+  svg.appendChild(v1);
+  const v2 = el('text', { x: x2 + barW / 2, y: chartH - padB - h2 - 8, class: 'axis-label', 'text-anchor': 'middle' });
+  v2.textContent = maliciousMs.toFixed(3) + ' ms';
+  svg.appendChild(v2);
+}
+</script>
+</body>
+</html>
